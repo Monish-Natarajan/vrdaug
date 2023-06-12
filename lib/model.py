@@ -7,10 +7,10 @@ import torch.nn.init
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-
 from lib.utils import AverageMeter
-# from lib.evaluation import eval_reall_at_N, eval_obj_img
-# from lib.data_layers.vrd_data_layer import VrdDataLayer
+from lib.evaluation import eval_reall_at_N, eval_obj_img
+from lib.data_layers.my_vrd_data_layer import VrdDataLayer
+from tqdm import tqdm
 
 def train_net(train_data_layer, net, epoch, args):
     net.train()
@@ -18,7 +18,7 @@ def train_net(train_data_layer, net, epoch, args):
     time1 = time.time()
     epoch_num = (int)(train_data_layer._num_instance/train_data_layer._batch_size)
     
-    for step in range(epoch_num):
+    for step in tqdm(range(epoch_num)):
         
         #####################################
 
@@ -40,7 +40,7 @@ def train_net(train_data_layer, net, epoch, args):
         #####################################
         
         loss = args.criterion((rel_so_prior+rel_score).view(1, -1), target)
-        losses.update(loss.data[0])
+        losses.update(loss.item())
         loss.backward()
         args.optimizer.step()        
         
@@ -50,60 +50,62 @@ def train_net(train_data_layer, net, epoch, args):
             time1 = time.time()
             losses.reset()
 
+        # break
 
-# def test_pre_net(net, args):
-#     net.eval()
-#     time1 = time.time()
-#     res = {}
-#     rlp_labels_ours  = []
-#     tuple_confs_cell = []
-#     sub_bboxes_cell  = []
-#     obj_bboxes_cell  = []
-#     test_data_layer = VrdDataLayer(args.ds_name, 'test', model_type = args.model_type)    
 
-#     for step in range(test_data_layer._num_instance):    
-#         test_data = test_data_layer.forward()
-#         if(test_data is None):
-#             rlp_labels_ours.append(None)
-#             tuple_confs_cell.append(None)
-#             sub_bboxes_cell.append(None)
-#             obj_bboxes_cell.append(None)
-#             continue
-#         image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, ori_bboxes = test_data
-#         rlp_labels_im  = np.zeros((100, 3), dtype = np.float)
-#         tuple_confs_im = []
-#         sub_bboxes_im  = np.zeros((100, 4), dtype = np.float)
-#         obj_bboxes_im  = np.zeros((100, 4), dtype = np.float)
-#         obj_score, rel_score = net(image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, args)
-#         rel_prob = rel_score.data.cpu().numpy()
-#         rel_res = np.dstack(np.unravel_index(np.argsort(-rel_prob.ravel()), rel_prob.shape))[0][:100]
-#         for ii in range(rel_res.shape[0]):            
-#             rel = rel_res[ii, 1]
-#             tuple_idx = rel_res[ii, 0]
-#             conf = rel_prob[tuple_idx, rel]
-#             sub_bboxes_im[ii] = ori_bboxes[ix1[tuple_idx]]
-#             obj_bboxes_im[ii] = ori_bboxes[ix2[tuple_idx]]
-#             rlp_labels_im[ii] = [classes[ix1[tuple_idx]], rel, classes[ix2[tuple_idx]]]
-#             tuple_confs_im.append(conf)
-#         if(args.ds_name =='vrd'):
-#             rlp_labels_im += 1
-#         tuple_confs_im = np.array(tuple_confs_im)
-#         rlp_labels_ours.append(rlp_labels_im)
-#         tuple_confs_cell.append(tuple_confs_im)
-#         sub_bboxes_cell.append(sub_bboxes_im)
-#         obj_bboxes_cell.append(obj_bboxes_im)
-#     res['rlp_labels_ours'] = rlp_labels_ours
-#     res['rlp_confs_ours'] = tuple_confs_cell 
-#     res['sub_bboxes_ours'] = sub_bboxes_cell 
-#     res['obj_bboxes_ours'] = obj_bboxes_cell
-#     rec_50  = eval_reall_at_N(args.ds_name, 50, res, use_zero_shot = False)
-#     rec_50_zs  = eval_reall_at_N(args.ds_name, 50, res, use_zero_shot = True)
-#     rec_100 = eval_reall_at_N(args.ds_name, 100, res, use_zero_shot = False)
-#     rec_100_zs = eval_reall_at_N(args.ds_name, 100, res, use_zero_shot = True)
-#     print('CLS TEST r50:%f, r50_zs:%f, r100:%f, r100_zs:%f'.format(rec_50, rec_50_zs, rec_100, rec_100_zs))
-#     time2 = time.time()            
-#     print("TEST Time:%s".format(time.strftime('%H:%M:%S', time.gmtime(int(time2 - time1)))))
-#     return rec_50, rec_50_zs, rec_100, rec_100_zs
+def test_pre_net(net, args):
+    net.eval()
+    time1 = time.time()
+    res = {}
+    rlp_labels_ours  = []
+    tuple_confs_cell = []
+    sub_bboxes_cell  = []
+    obj_bboxes_cell  = []
+    test_data_layer = VrdDataLayer(args.ds_name, 'test', model_type = args.model_type)    
+
+    for step in tqdm(range(test_data_layer._num_instance)):    
+        test_data = test_data_layer.forward()
+        if(test_data is None):
+            rlp_labels_ours.append(None)
+            tuple_confs_cell.append(None)
+            sub_bboxes_cell.append(None)
+            obj_bboxes_cell.append(None)
+            continue
+        image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, ori_bboxes = test_data
+        rlp_labels_im  = np.zeros((100, 3), dtype = np.float)
+        tuple_confs_im = []
+        sub_bboxes_im  = np.zeros((100, 4), dtype = np.float)
+        obj_bboxes_im  = np.zeros((100, 4), dtype = np.float)
+        obj_score, rel_score = net(image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, args)
+        rel_prob = rel_score.data.cpu().numpy()
+        rel_res = np.dstack(np.unravel_index(np.argsort(-rel_prob.ravel()), rel_prob.shape))[0][:100]
+        for ii in range(rel_res.shape[0]):            
+            rel = rel_res[ii, 1]
+            tuple_idx = rel_res[ii, 0]
+            conf = rel_prob[tuple_idx, rel]
+            sub_bboxes_im[ii] = ori_bboxes[ix1[tuple_idx]]
+            obj_bboxes_im[ii] = ori_bboxes[ix2[tuple_idx]]
+            rlp_labels_im[ii] = [classes[ix1[tuple_idx]], rel, classes[ix2[tuple_idx]]]
+            tuple_confs_im.append(conf)
+        if(args.ds_name =='vrd'):
+            rlp_labels_im += 1
+        tuple_confs_im = np.array(tuple_confs_im)
+        rlp_labels_ours.append(rlp_labels_im)
+        tuple_confs_cell.append(tuple_confs_im)
+        sub_bboxes_cell.append(sub_bboxes_im)
+        obj_bboxes_cell.append(obj_bboxes_im)
+    res['rlp_labels_ours'] = rlp_labels_ours
+    res['rlp_confs_ours'] = tuple_confs_cell 
+    res['sub_bboxes_ours'] = sub_bboxes_cell 
+    res['obj_bboxes_ours'] = obj_bboxes_cell
+    rec_50  = eval_reall_at_N(args.ds_name, 50, res, use_zero_shot = False)
+    rec_50_zs  = eval_reall_at_N(args.ds_name, 50, res, use_zero_shot = True)
+    rec_100 = eval_reall_at_N(args.ds_name, 100, res, use_zero_shot = False)
+    rec_100_zs = eval_reall_at_N(args.ds_name, 100, res, use_zero_shot = True)
+    print('CLS TEST r50:%f, r50_zs:%f, r100:%f, r100_zs:%f'.format(rec_50, rec_50_zs, rec_100, rec_100_zs))
+    time2 = time.time()            
+    print("TEST Time:%s".format(time.strftime('%H:%M:%S', time.gmtime(int(time2 - time1)))))
+    return rec_50, rec_50_zs, rec_100, rec_100_zs
 
 
 # def test_rel_net(net, args):

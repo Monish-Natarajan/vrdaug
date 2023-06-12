@@ -11,7 +11,7 @@ class VrdDataLayer(object):
 
     def __init__(self, ds_name, stage, model_type = None, proposals_path = None):
         """Setup the RoIDataLayer."""
-        self.data_dir = '/home/monish/Flinders/code/vrd-dsr/data/'
+        self.data_dir = '/content/drive/MyDrive/vrdaug/data'
         self.stage = stage
         self.model_type = model_type
         self.this_dir = osp.dirname(__file__)
@@ -67,7 +67,7 @@ class VrdDataLayer(object):
         im_path = anno_img['img_path']
         
         im_path = osp.join(self.data_dir,anno_img['img_path'][8:])
-        print("im_path :",im_path)
+        # print("im_path :",im_path)
 
         im = cv2.imread(im_path)
         ih = im.shape[0]    
@@ -122,7 +122,7 @@ class VrdDataLayer(object):
             if(self._cur >= len(self._anno)):
                 self._cur = 0
             return None
-        im_path = osp(self.data_dir,anno_img['img_path'].split('/')[2:])
+        im_path = osp.join(self.data_dir,anno_img['img_path'][8:])
 
         im = cv2.imread(im_path)
         ih = im.shape[0]    

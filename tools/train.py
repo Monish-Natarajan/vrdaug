@@ -14,9 +14,9 @@ from lib.nets.Vrdaug_Model import Vrd_Model
 import lib.network as network
 from lib.data_layers.my_vrd_data_layer import VrdDataLayer
 
-from lib.model import train_net
-# from lib.model import test_pre_net, test_rel_net
-# from lib.utils import save_checkpoint
+from lib.model import train_net, test_pre_net
+from lib.utils import save_checkpoint
+# from lib.model import test_rel_net
 
 def parse_args():
     """
@@ -49,7 +49,7 @@ def parse_args():
                         metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--resume', default='', type=str, metavar='PATH',
                         help='path to latest checkpoint (default: none)')
-    parser.add_argument('--data_dir', default='/home/monish/Flinders/code/vrd-dsr/data', type=str, metavar='PATH',
+    parser.add_argument('--data_dir', default='/content/drive/MyDrive/vrdaug/data', type=str, metavar='PATH',
                     help='path to data directory')
     
     if len(sys.argv) == 1:
@@ -76,15 +76,20 @@ if __name__ == '__main__':
     # load net
     net = Vrd_Model(args)
     network.weights_normal_init(net, dev=0.01)
-    # pretrained_model = '../data/VGG_imagenet.npy'    
-    # network.load_pretrained_npy(net, pretrained_model)
+    pretrained_model = osp.join(args.data_dir,'VGG_imagenet.npy')   
+    network.load_pretrained_npy(net, pretrained_model)
+    print("Loaded Pre-Trained VGG Feature Extractor!")
     
     # Initial object embedding with word2vec
-    #with open('../data/vrd/params_emb.pkl') as f:
-    #    emb_init = cPickle.load(f)
-    #net.state_dict()['emb.weight'].copy_(torch.from_numpy(emb_init))
+    emb_path = osp.join(args.data_dir,'vrd/params_emb.pkl')
+    with open(emb_path,'rb') as f:
+        u = pickle._Unpickler(f)
+        u.encoding = 'latin1'
+        emb_init = u.load()
+    net.state_dict()['emb.weight'].copy_(torch.from_numpy(emb_init))
+    print("Loaded word2vec embeddings!")
     
-    # net.cuda()    
+    net.cuda()    
     params = list(net.parameters())
     momentum = 0.9
     weight_decay = 0.0005
@@ -94,15 +99,15 @@ if __name__ == '__main__':
                   {'params': net.fc_rel.parameters(), 'lr': args.lr*10},                  
                   ]
     
-    # if(args.use_so):
-    #     opt_params.append({'params': net.fc_so.parameters(), 'lr': args.lr*10})
-    # if(args.loc_type == 1):
-    #     opt_params.append({'params': net.fc_lov.parameters(), 'lr': args.lr*10})
-    # elif(args.loc_type == 2):
-    #     opt_params.append({'params': net.conv_lo.parameters(), 'lr': args.lr*10})
-    #     opt_params.append({'params': net.fc_lov.parameters(), 'lr': args.lr*10})
-    # if(args.use_obj):
-    #     opt_params.append({'params': net.fc_so_emb.parameters(), 'lr': args.lr*10})  
+    if(args.use_so):
+        opt_params.append({'params': net.fc_so.parameters(), 'lr': args.lr*10})
+    if(args.loc_type == 1):
+        opt_params.append({'params': net.fc_lov.parameters(), 'lr': args.lr*10})
+    elif(args.loc_type == 2):
+        opt_params.append({'params': net.conv_lo.parameters(), 'lr': args.lr*10})
+        opt_params.append({'params': net.fc_lov.parameters(), 'lr': args.lr*10})
+    if(args.use_obj):
+        opt_params.append({'params': net.fc_so_emb.parameters(), 'lr': args.lr*10})  
 
     args.optimizer = torch.optim.Adam(opt_params, lr=args.lr, weight_decay=weight_decay)
     
@@ -117,25 +122,33 @@ if __name__ == '__main__':
     #     else:
     #         print("=> no checkpoint found at '{}'".format(args.resume))    
     
-    # res_file = '../experiment/results/%s.txt'%args.name
-    # if not osp.exists('../experiment/results'):
-    #     os.makedirs('../experiment/results')
-    # save_dir = '../models/%s'%args.name
-    # if not osp.exists(save_dir):
-    #     os.makedirs(save_dir)
+    res_file = f'../experiment/results/{args.name}.txt'
+    if not osp.exists('../experiment/results'):
+        os.makedirs('../experiment/results')
+    save_dir = f'../models/{args.name}'
+    if not osp.exists(save_dir):
+        os.makedirs(save_dir)
     
-    headers = ["Epoch","Pre R@50", "ZS", "R@100", "ZS", "Rel R@50", "ZS", "R@100", "ZS"]
+    # headers = ["Epoch","Pre R@50", "ZS", "R@100", "ZS", "Rel R@50", "ZS", "R@100", "ZS"]
+    headers = ["Epoch","Pre R@50", "ZS", "R@100", "ZS"]
     res = []
+    res.append((0,) + test_pre_net(net, args))
+    with open(res_file, 'w') as f:
+        f.write(tabulate(res, headers))
+    
     for epoch in range(args.start_epoch, args.epochs):
-        
-        print('Epoch: {}'.format(epoch))
+        print('Epoch: {}'.format(epoch+1))
         train_net(train_data_layer, net, epoch, args)
+        
         # res.append((epoch,) + test_pre_net(net, args)+test_rel_net(net, args))
+        res.append((epoch,) + test_pre_net(net, args))
 
-        # with open(res_file, 'w') as f:
-        #     f.write(tabulate(res, headers))
-        # save_checkpoint(f'{save_dir}/epoch_{epoch}_checkpoint.pth.tar', {
-        #     'epoch': epoch,
-        #     'state_dict': net.state_dict(),            
-        #     'optimizer' : args.optimizer.state_dict(),
-        # })
+        with open(res_file, 'w') as f:
+            f.write(tabulate(res, headers))
+        save_checkpoint(f'{save_dir}/epoch_{epoch}_checkpoint.pth.tar', {
+            'epoch': epoch,
+            'state_dict': net.state_dict(),            
+            'optimizer' : args.optimizer.state_dict(),
+        })
+
+        break

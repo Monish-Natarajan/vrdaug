@@ -78,7 +78,7 @@ def load_pretrained_RO_npy(faster_rcnn_model, fname):
         frcnn_dict[key].copy_(param)
 
 def load_pretrained_npy(faster_rcnn_model, fname):
-    params = np.load(fname).item()
+    params = np.load(fname,allow_pickle=True,encoding='latin1').item()
     # vgg16
     vgg16_dict = faster_rcnn_model.state_dict()
     for name, val in vgg16_dict.items():
