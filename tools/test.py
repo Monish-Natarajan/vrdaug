@@ -1,7 +1,7 @@
 import os
 import os.path as osp
 import sys
-import cPickle
+import pickle
 import argparse
 from tabulate import tabulate
 
@@ -59,8 +59,8 @@ if __name__ == '__main__':
     args = parse_args()
     args.proposal = '../data/vrd/proposal.pkl'
     args.resume = '../models/%s/epoch_%d_checkpoint.pth.tar'%(args.name, args.epochs-1)
-    print args
-    print 'Evaluating...'
+    print(args)
+    print('Evaluating...')
     # Data
     test_data_layer = VrdDataLayer(args.ds_name, 'test', model_type = args.model_type)
     args.num_relations = test_data_layer._num_relations
@@ -75,6 +75,6 @@ if __name__ == '__main__':
         headers = ["Epoch","Pre R@50", "ZS", "R@100", "ZS", "Rel R@50", "ZS", "R@100", "ZS"]
         res = []
         res.append((args.epochs-1,) + test_pre_net(net, args)+test_rel_net(net, args))
-        print tabulate(res, headers)
+        print(tabulate(res, headers))
     else:
-        print "=> no model found at '{}'".format(args.resume)
+        print("=> no model found at '{}'".format(args.resume))

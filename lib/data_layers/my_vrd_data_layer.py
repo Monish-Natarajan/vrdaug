@@ -9,9 +9,11 @@ import math
 
 class VrdDataLayer(object):
 
-    def __init__(self, ds_name, stage, model_type = None, proposals_path = None):
+    def __init__(self, ds_name, stage, model_type = None, proposals_path = None, data_dir=None):
         """Setup the RoIDataLayer."""
         self.data_dir = '/content/drive/MyDrive/vrdaug/data'
+        if(data_dir != None):
+            self.data_dir = data_dir
         self.stage = stage
         self.model_type = model_type
         self.this_dir = osp.dirname(__file__)

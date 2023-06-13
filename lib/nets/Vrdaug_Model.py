@@ -15,13 +15,9 @@ import torchvision.models as models
 
 import torchvision.ops.roi_pool as roi_pool 
 
-class Vrd_Model(nn.Module):
+class VGG_backbone(nn.Module):
     def __init__(self, args, bn=False):
-        super(Vrd_Model, self).__init__()
-
-        self.n_rel = args.num_relations
-        self.n_obj = args.num_classes
-
+        super(VGG_backbone, self).__init__()
         self.conv1 = nn.Sequential(Conv2d(3, 64, 3, same_padding=True, bn=bn),
                                    Conv2d(64, 64, 3, same_padding=True, bn=bn),
                                    nn.MaxPool2d(2))
@@ -45,7 +41,51 @@ class Vrd_Model(nn.Module):
         network.set_trainable(self.conv3, requires_grad=False)
         network.set_trainable(self.conv4, requires_grad=False)
         network.set_trainable(self.conv5, requires_grad=False)
+
+    def forward(self,im_data):
+        im_data = network.np_to_variable(im_data, is_cuda=False)
+        im_data = im_data.permute(0, 3, 1, 2)
+
+        x = self.conv1(im_data)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.conv4(x)
+        x = self.conv5(x)
+        return x
+
+class Vrd_Model(nn.Module):
+    def __init__(self, args, bn=False):
+        super(Vrd_Model, self).__init__()
+
+        self.n_rel = args.num_relations
+        self.n_obj = args.num_classes
+
+        # self.conv1 = nn.Sequential(Conv2d(3, 64, 3, same_padding=True, bn=bn),
+        #                            Conv2d(64, 64, 3, same_padding=True, bn=bn),
+        #                            nn.MaxPool2d(2))
+        # self.conv2 = nn.Sequential(Conv2d(64, 128, 3, same_padding=True, bn=bn),
+        #                            Conv2d(128, 128, 3, same_padding=True, bn=bn),
+        #                            nn.MaxPool2d(2))
+        # network.set_trainable(self.conv1, requires_grad=False)
+        # network.set_trainable(self.conv2, requires_grad=False)
+
+        # self.conv3 = nn.Sequential(Conv2d(128, 256, 3, same_padding=True, bn=bn),
+        #                            Conv2d(256, 256, 3, same_padding=True, bn=bn),
+        #                            Conv2d(256, 256, 3, same_padding=True, bn=bn),
+        #                            nn.MaxPool2d(2))
+        # self.conv4 = nn.Sequential(Conv2d(256, 512, 3, same_padding=True, bn=bn),
+        #                            Conv2d(512, 512, 3, same_padding=True, bn=bn),
+        #                            Conv2d(512, 512, 3, same_padding=True, bn=bn),
+        #                            nn.MaxPool2d(2))
+        # self.conv5 = nn.Sequential(Conv2d(512, 512, 3, same_padding=True, bn=bn),
+        #                            Conv2d(512, 512, 3, same_padding=True, bn=bn),
+        #                            Conv2d(512, 512, 3, same_padding=True, bn=bn))
+        # network.set_trainable(self.conv3, requires_grad=False)
+        # network.set_trainable(self.conv4, requires_grad=False)
+        # network.set_trainable(self.conv5, requires_grad=False)
         
+        self.vgg_backbone = VGG_backbone(args, bn=bn)
+
         self.roi_pool_size = (7,7)
         self.fc6 = FC(512 * 7 * 7, 4096)
         self.fc7 = FC(4096, 4096)        
@@ -82,21 +122,22 @@ class Vrd_Model(nn.Module):
         self.fc_rel = FC(256, self.n_rel, relu=False)
 
     def forward(self, im_data, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, args):
-        
-        im_data = network.np_to_variable(im_data, is_cuda=True)
-        im_data = im_data.permute(0, 3, 1, 2)
-        boxes = network.np_to_variable(boxes, is_cuda=True)
-        rel_boxes = network.np_to_variable(rel_boxes, is_cuda=True)
-        SpatialFea = network.np_to_variable(SpatialFea, is_cuda=True)
-        classes = network.np_to_variable(classes, is_cuda=True, dtype=torch.LongTensor)
-        ix1 = network.np_to_variable(ix1, is_cuda=True, dtype=torch.LongTensor)
-        ix2 = network.np_to_variable(ix2, is_cuda=True, dtype=torch.LongTensor)
+        # im_data = network.np_to_variable(im_data, is_cuda=False)
+        # im_data = im_data.permute(0, 3, 1, 2)
+        boxes = network.np_to_variable(boxes, is_cuda=False)
+        rel_boxes = network.np_to_variable(rel_boxes, is_cuda=False)
+        SpatialFea = network.np_to_variable(SpatialFea, is_cuda=False)
+        classes = network.np_to_variable(classes, is_cuda=False, dtype=torch.LongTensor)
+        ix1 = network.np_to_variable(ix1, is_cuda=False, dtype=torch.LongTensor)
+        ix2 = network.np_to_variable(ix2, is_cuda=False, dtype=torch.LongTensor)
 
-        x = self.conv1(im_data)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = self.conv5(x)
+        # x = self.conv1(im_data)
+        # x = self.conv2(x)
+        # x = self.conv3(x)
+        # x = self.conv4(x)
+        # x = self.conv5(x)
+
+        x = self.vgg_backbone(im_data)
 
         ####################################################
 

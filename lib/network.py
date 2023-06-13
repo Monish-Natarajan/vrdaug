@@ -80,7 +80,7 @@ def load_pretrained_RO_npy(faster_rcnn_model, fname):
 def load_pretrained_npy(faster_rcnn_model, fname):
     params = np.load(fname,allow_pickle=True,encoding='latin1').item()
     # vgg16
-    vgg16_dict = faster_rcnn_model.state_dict()
+    vgg16_dict = faster_rcnn_model.vgg_backbone.state_dict()
     for name, val in vgg16_dict.items():
         if name.find('bn.') >= 0 or not 'conv' in name or 'lo' in name:
             continue
@@ -91,7 +91,6 @@ def load_pretrained_npy(faster_rcnn_model, fname):
 
         if ptype == 'weights':
             param = param.permute(3, 2, 0, 1)
-
         val.copy_(param)
 
     # fc6 fc7

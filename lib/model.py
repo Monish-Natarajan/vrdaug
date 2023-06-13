@@ -49,7 +49,6 @@ def train_net(train_data_layer, net, epoch, args):
             print("TRAIN:{}, Total LOSS:{}, Time:{}".format(step, losses.avg, time.strftime('%H:%M:%S', time.gmtime(int(time2 - time1)))))
             time1 = time.time()
             losses.reset()
-
         # break
 
 
@@ -71,14 +70,20 @@ def test_pre_net(net, args):
             sub_bboxes_cell.append(None)
             obj_bboxes_cell.append(None)
             continue
+        
         image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, ori_bboxes = test_data
         rlp_labels_im  = np.zeros((100, 3), dtype = np.float)
         tuple_confs_im = []
         sub_bboxes_im  = np.zeros((100, 4), dtype = np.float)
         obj_bboxes_im  = np.zeros((100, 4), dtype = np.float)
+
+        #####################################
         obj_score, rel_score = net(image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, args)
+        #####################################        
+
         rel_prob = rel_score.data.cpu().numpy()
         rel_res = np.dstack(np.unravel_index(np.argsort(-rel_prob.ravel()), rel_prob.shape))[0][:100]
+        
         for ii in range(rel_res.shape[0]):            
             rel = rel_res[ii, 1]
             tuple_idx = rel_res[ii, 0]
@@ -94,6 +99,7 @@ def test_pre_net(net, args):
         tuple_confs_cell.append(tuple_confs_im)
         sub_bboxes_cell.append(sub_bboxes_im)
         obj_bboxes_cell.append(obj_bboxes_im)
+    
     res['rlp_labels_ours'] = rlp_labels_ours
     res['rlp_confs_ours'] = tuple_confs_cell 
     res['sub_bboxes_ours'] = sub_bboxes_cell 
@@ -102,6 +108,7 @@ def test_pre_net(net, args):
     rec_50_zs  = eval_reall_at_N(args.ds_name, 50, res, use_zero_shot = True)
     rec_100 = eval_reall_at_N(args.ds_name, 100, res, use_zero_shot = False)
     rec_100_zs = eval_reall_at_N(args.ds_name, 100, res, use_zero_shot = True)
+    
     print('CLS TEST r50:%f, r50_zs:%f, r100:%f, r100_zs:%f'.format(rec_50, rec_50_zs, rec_100, rec_100_zs))
     time2 = time.time()            
     print("TEST Time:%s".format(time.strftime('%H:%M:%S', time.gmtime(int(time2 - time1)))))
