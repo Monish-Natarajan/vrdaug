@@ -76,7 +76,7 @@ if __name__ == '__main__':
     args.num_classes = train_data_layer._num_classes
     
     # # load net
-    # net = Vrd_Model(args)
+    net = Vrd_Model(args)
     # network.weights_normal_init(net, dev=0.01)
     # pretrained_model = osp.join(args.data_dir,'VGG_imagenet.npy')   
     # network.load_pretrained_npy(net, pretrained_model)
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     # net.cuda()
 
     # # test
-    # net.eval()    
+    net.eval()    
 
     # # for each object class, extract mean pixel features of bounding box region
     # # also extract mean bounding box features --> x_center,y_center, w, h
@@ -94,18 +94,30 @@ if __name__ == '__main__':
     #     mean_pixel_features[i] = []
     #     mean_bbox_features[i] = []
     
-    for step in tqdm(range(train_data_layer._num_instance)):    
+    for step in range(train_data_layer._num_instance):    
         train_data = train_data_layer.forward()    
         if(train_data is None):
             continue
         
         image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, rel_labels, rel_so_prior = train_data
-        # feat_map = net.vgg_backbone(image_blob)
-        # print("feat_map.shape: ", feat_map.shape)
+        feat = net.vgg_backbone(image_blob) # image feature map
 
-        print(boxes[0])
+        # merge ix1 and ix2
+        uniq_inst = np.unique(np.concatenate([ix1, ix2], axis=0))
+        for iid in uniq_inst:
+            
+            inst_bbox = boxes[iid][1:5]
+            # splice out instance features from feat using bbox coordinates 
+            # inst_feat = feat[:,inst_bbox[1]:inst_bbox[3],inst_bbox[0]:inst_bbox[2]]
+            # mean_inst_feat = torch.mean(inst_feat, dim=(1,2))
 
-        # break
+            print("feat shape: ", feat.shape)
+            print("inst_bbox: ", inst_bbox)
+            # print("inst_feat shape: ", inst_feat.shape)
+            # print("mean_inst_feat shape: ", mean_inst_feat.shape)
+            # dimensions of mean_inst_feat: 512
+        
+        break
 
     #     #####################################
     #     obj_score, rel_score = net(image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, args)

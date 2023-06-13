@@ -87,6 +87,13 @@ class VrdDataLayer(object):
         ix2 = np.array(anno_img['ix2'])
         rel_classes = anno_img['rel_classes']
 
+        # print("classes :",classes)
+        # print("ix1 :",ix1)
+        # print("ix2 :",ix2)
+        # print("rel_classes :",rel_classes)
+        # print("len(rel_classes) :",len(rel_classes))
+        # print("**********************")
+
         n_rel_inst = len(rel_classes)
         rel_boxes = np.zeros((n_rel_inst, 5))
         rel_labels = -1*np.ones((1, n_rel_inst*self._num_relations))
