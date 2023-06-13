@@ -14,10 +14,6 @@ from lib.nets.Vrdaug_Model import Vrd_Model
 import lib.network as network
 from lib.data_layers.my_vrd_data_layer import VrdDataLayer
 
-# from lib.model import train_net, test_pre_net
-# from lib.utils import save_checkpoint
-# from lib.model import test_rel_net
-
 import numpy as np
 from tqdm import tqdm
 
@@ -84,41 +80,45 @@ if __name__ == '__main__':
     # net.cuda()
 
     # # test
-    net.eval()    
+    net.eval()
 
-    # # for each object class, extract mean pixel features of bounding box region
-    # # also extract mean bounding box features --> x_center,y_center, w, h
-    # mean_pixel_features = {}
-    # mean_bbox_features = {}
-    # for i in range(args.num_classes):
-    #     mean_pixel_features[i] = []
-    #     mean_bbox_features[i] = []
+    mean_class_feat = [torch.zeros(512,1,1)]*args.num_classes
+    class_inst_count = [0]*args.num_classes    
     
+    img_cnt=0
     for step in range(train_data_layer._num_instance):    
         train_data = train_data_layer.forward()    
         if(train_data is None):
             continue
         
         image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, rel_labels, rel_so_prior = train_data
-        feat = net.vgg_backbone(image_blob) # image feature map
+        feat = net.vgg_backbone(image_blob) # image feature map --> torch.Size([1, 512, _, _])
 
         # merge ix1 and ix2
         uniq_inst = np.unique(np.concatenate([ix1, ix2], axis=0))
         for iid in uniq_inst:
             
-            inst_bbox = boxes[iid][1:5]
-            # splice out instance features from feat using bbox coordinates 
-            # inst_feat = feat[:,inst_bbox[1]:inst_bbox[3],inst_bbox[0]:inst_bbox[2]]
-            # mean_inst_feat = torch.mean(inst_feat, dim=(1,2))
+            im_ht, im_width = image_blob.shape[2:]
+            ft_ht, ft_width = feat.shape[2:]
+            
+            bbox = boxes[iid][1:5]
+            newbbox = bbox.copy()
+            newbbox[0] = (int) (bbox[0] * ft_width / im_width)
+            newbbox[1] = (int) (bbox[1] * ft_ht / im_ht)
+            newbbox[2] = (int) (bbox[2] * ft_width / im_width)
+            newbbox[3] = (int) (bbox[3] * ft_ht / im_ht)
 
-            print("feat shape: ", feat.shape)
-            print("inst_bbox: ", inst_bbox)
-            # print("inst_feat shape: ", inst_feat.shape)
-            # print("mean_inst_feat shape: ", mean_inst_feat.shape)
-            # dimensions of mean_inst_feat: 512
-        
-        break
+            inst_feat_map = feat[0][:, newbbox[1]:newbbox[3], newbbox[0]:newbbox[2]]
+            mean_values = torch.mean(inst_feat_map, dim=(1, 2), keepdim=True)
+            mean_class_feat[classes[iid]] += mean_values
+            class_inst_count[classes[iid]] += 1
 
-    #     #####################################
-    #     obj_score, rel_score = net(image_blob, boxes, rel_boxes, SpatialFea, classes, ix1, ix2, args)
-    #     #####################################      
+            print("inst feat shape: ", inst_feat_map.shape)
+            img_cnt += 1
+            print("img_cnt: ", img_cnt)
+    
+    for i in range(args.num_classes):
+        mean_class_feat[i] /= class_inst_count[i]
+
+    with open(osp.join(args.data_dir, 'mean_class_feat.pkl'), 'wb') as f:
+        pickle.dump(mean_class_feat, f)
